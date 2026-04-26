@@ -25,7 +25,7 @@ export default function App() {
   const [mood, setMood] = useState("");
   const [energy, setEnergy] = useState("");
   const [wins, setWins] = useState("");
-  const [struggles, setStruggles] = useState("");
+  const [Challenges This Week, setChallenges This Week] = useState("");
   const [checkinNotes, setCheckinNotes] = useState("");
 
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function App() {
         mood,
         energy,
         wins,
-        struggles,
+        Challenges This Week,
         notes: checkinNotes,
       },
     ]);
@@ -196,7 +196,7 @@ export default function App() {
     setMood("");
     setEnergy("");
     setWins("");
-    setStruggles("");
+    setChallenges This Week("");
     setCheckinNotes("");
 
     loadCheckins(session.user.email);
@@ -336,12 +336,12 @@ export default function App() {
             <h2>Weekly Check-In</h2>
 
             <input placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)} style={inputStyle} />
-            <input placeholder="Mood /10" value={mood} onChange={(e) => setMood(e.target.value)} style={inputStyle} />
-            <input placeholder="Energy /10" value={energy} onChange={(e) => setEnergy(e.target.value)} style={inputStyle} />
+            <input placeholder="Mindset This Week" value={mood} onChange={(e) => setMood(e.target.value)} style={inputStyle} />
+            <input placeholder="Energy Levels" value={energy} onChange={(e) => setEnergy(e.target.value)} style={inputStyle} />
 
-            <textarea placeholder="Wins this week" value={wins} onChange={(e) => setWins(e.target.value)} style={{ ...inputStyle, height: 80 }} />
-            <textarea placeholder="Struggles" value={struggles} onChange={(e) => setStruggles(e.target.value)} style={{ ...inputStyle, height: 80 }} />
-            <textarea placeholder="Extra notes" value={checkinNotes} onChange={(e) => setCheckinNotes(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Progress This Week" value={wins} onChange={(e) => setWins(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Challenges This Week" value={Challenges This Week} onChange={(e) => setChallenges This Week(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Anything You Need Help With?" value={checkinNotes} onChange={(e) => setCheckinNotes(e.target.value)} style={{ ...inputStyle, height: 80 }} />
 
             <button onClick={submitCheckin} style={{ ...buttonStyle, background: "white", color: "black" }}>
               Submit Check-In
@@ -358,7 +358,7 @@ export default function App() {
             <p><b>Mood:</b> {item.mood}</p>
             <p><b>Energy:</b> {item.energy}</p>
             <p><b>Wins:</b> {item.wins}</p>
-            <p><b>Struggles:</b> {item.struggles}</p>
+            <p><b>Challenges This Week:</b> {item.Challenges This Week}</p>
             <p><b>Notes:</b> {item.notes}</p>
 
             {isAdmin && (
