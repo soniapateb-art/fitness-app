@@ -25,7 +25,7 @@ export default function App() {
   const [mood, setMood] = useState("");
   const [energy, setEnergy] = useState("");
   const [wins, setWins] = useState("");
-  const [Challenges This Week, setChallenges This Week] = useState("");
+  const [struggles, setstruggles] = useState("");
   const [checkinNotes, setCheckinNotes] = useState("");
 
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function App() {
         mood,
         energy,
         wins,
-        Challenges This Week,
+        struggles,
         notes: checkinNotes,
       },
     ]);
@@ -196,7 +196,7 @@ export default function App() {
     setMood("");
     setEnergy("");
     setWins("");
-    setChallenges This Week("");
+    setstruggles("");
     setCheckinNotes("");
 
     loadCheckins(session.user.email);
@@ -340,7 +340,7 @@ export default function App() {
             <input placeholder="Energy Levels" value={energy} onChange={(e) => setEnergy(e.target.value)} style={inputStyle} />
 
             <textarea placeholder="Progress This Week" value={wins} onChange={(e) => setWins(e.target.value)} style={{ ...inputStyle, height: 80 }} />
-            <textarea placeholder="Challenges This Week" value={Challenges This Week} onChange={(e) => setChallenges This Week(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Challenges This Week" value={struggles} onChange={(e) => setstruggles(e.target.value)} style={{ ...inputStyle, height: 80 }} />
             <textarea placeholder="Anything You Need Help With?" value={checkinNotes} onChange={(e) => setCheckinNotes(e.target.value)} style={{ ...inputStyle, height: 80 }} />
 
             <button onClick={submitCheckin} style={{ ...buttonStyle, background: "white", color: "black" }}>
@@ -358,7 +358,7 @@ export default function App() {
             <p><b>Mood:</b> {item.mood}</p>
             <p><b>Energy:</b> {item.energy}</p>
             <p><b>Wins:</b> {item.wins}</p>
-            <p><b>Challenges This Week:</b> {item.Challenges This Week}</p>
+            <p><b>Challenges This Week:</b> {item.struggles}</p>
             <p><b>Notes:</b> {item.notes}</p>
 
             {isAdmin && (
