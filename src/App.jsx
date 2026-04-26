@@ -2,35 +2,44 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
+  const adminEmail = "admin@email.com";
+
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [clientEmail, setClientEmail] = useState("");
-  const [title, setTitle] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [notes, setNotes] = useState("");
-  const [sets, setSets] = useState("");
-  const [reps, setReps] = useState("");
-  const [restTime, setRestTime] = useState("");
-  const [category, setCategory] = useState("");
-
-  const [editingId, setEditingId] = useState(null);
   const [exercises, setExercises] = useState([]);
+  const [checkins, setCheckins] = useState([]);
 
-  const adminEmail = "admin@email.com";
+  const [weight, setWeight] = useState("");
+  const [mood, setMood] = useState("");
+  const [energy, setEnergy] = useState("");
+  const [wins, setWins] = useState("");
+  const [struggles, setStruggles] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) loadExercises(data.session.user.email);
+      if (data.session) {
+        loadExercises(data.session.user.email);
+        loadCheckins(data.session.user.email);
+      }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) loadExercises(session.user.email);
-      else setExercises([]);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        setSession(currentSession);
+
+        if (currentSession) {
+          loadExercises(currentSession.user.email);
+          loadCheckins(currentSession.user.email);
+        } else {
+          setExercises([]);
+          setCheckins([]);
+        }
+      }
+    );
 
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -38,7 +47,11 @@ export default function App() {
   const isAdmin = session?.user?.email === adminEmail;
 
   async function login() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) alert(error.message);
   }
 
@@ -56,129 +69,69 @@ export default function App() {
       query = query.eq("client_email", userEmail);
     }
 
-    const { data, error } = await query;
-    if (!error) setExercises(data || []);
+    const { data } = await query;
+    setExercises(data || []);
   }
 
-  function clearForm() {
-    setClientEmail("");
-    setTitle("");
-    setVideoUrl("");
+  async function loadCheckins(userEmail) {
+    let query = supabase
+      .from("checkins")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (userEmail !== adminEmail) {
+      query = query.eq("client_email", userEmail);
+    }
+
+    const { data } = await query;
+    setCheckins(data || []);
+  }
+
+  async function submitCheckin() {
+    const { error } = await supabase.from("checkins").insert([
+      {
+        client_email: session.user.email,
+        weight,
+        mood,
+        energy,
+        wins,
+        struggles,
+        notes,
+      },
+    ]);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setWeight("");
+    setMood("");
+    setEnergy("");
+    setWins("");
+    setStruggles("");
     setNotes("");
-    setSets("");
-    setReps("");
-    setRestTime("");
-    setCategory("");
-    setEditingId(null);
+
+    loadCheckins(session.user.email);
   }
 
-  async function addExercise() {
-    if (!clientEmail || !title || !videoUrl) {
-      alert("Please add client email, exercise title and video URL");
-      return;
-    }
-
-    const exerciseData = {
-      client_email: clientEmail,
-      title,
-      video_url: videoUrl,
-      notes,
-      sets,
-      reps,
-      rest_time: restTime,
-      category,
-    };
-
-    let result;
-
-    if (editingId) {
-      result = await supabase
-        .from("exercises")
-        .update(exerciseData)
-        .eq("id", editingId);
-    } else {
-      result = await supabase.from("exercises").insert([exerciseData]);
-    }
-
-    if (result.error) {
-      alert(result.error.message);
-      return;
-    }
-
-    clearForm();
-    loadExercises(session.user.email);
+  async function deleteCheckin(id) {
+    await supabase.from("checkins").delete().eq("id", id);
+    loadCheckins(session.user.email);
   }
-
-  function startEdit(item) {
-    setEditingId(item.id);
-    setClientEmail(item.client_email || "");
-    setTitle(item.title || "");
-    setVideoUrl(item.video_url || "");
-    setNotes(item.notes || "");
-    setSets(item.sets || "");
-    setReps(item.reps || "");
-    setRestTime(item.rest_time || "");
-    setCategory(item.category || "");
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  async function deleteExercise(id) {
-    await supabase.from("exercises").delete().eq("id", id);
-    loadExercises(session.user.email);
-  }
-
-  async function markComplete(id, current) {
-    await supabase.from("exercises").update({ completed: !current }).eq("id", id);
-    loadExercises(session.user.email);
-  }
-
-  const styles = {
-    page: {
-      minHeight: "100vh",
-      background: "#111",
-      color: "white",
-      fontFamily: "Arial",
-      padding: 30,
-    },
-    input: {
-      display: "block",
-      width: "100%",
-      padding: 12,
-      marginBottom: 10,
-      borderRadius: 8,
-      border: "1px solid #444",
-      background: "#222",
-      color: "white",
-    },
-    card: {
-      background: "#1e1e1e",
-      padding: 20,
-      borderRadius: 12,
-      marginBottom: 20,
-    },
-    button: {
-      padding: 12,
-      borderRadius: 8,
-      border: "none",
-      cursor: "pointer",
-      marginRight: 8,
-      marginTop: 8,
-    },
-  };
 
   if (!session) {
     return (
-      <div style={styles.page}>
-        <div style={{ maxWidth: 420, margin: "60px auto", textAlign: "center" }}>
-          <img src="/logo.png.png" style={{ width: 180, marginBottom: 20 }} />
+      <div style={{ padding: 40, background: "#111", color: "white", minHeight: "100vh" }}>
+        <div style={{ maxWidth: 400, margin: "0 auto" }}>
+          <img src="/logo.png.png" style={{ width: 180, display: "block", margin: "0 auto 20px" }} />
           <h1>Client Login</h1>
 
           <input
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }}
           />
 
           <input
@@ -186,10 +139,10 @@ export default function App() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }}
           />
 
-          <button onClick={login} style={{ ...styles.button, width: "100%" }}>
+          <button onClick={login} style={{ width: "100%", padding: 12 }}>
             Login
           </button>
         </div>
@@ -198,86 +151,89 @@ export default function App() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <img src="/logo.png.png" style={{ width: 180 }} />
-          <h1>{isAdmin ? "Coach Dashboard" : "My Training Plan"}</h1>
-          <p>{session.user.email}</p>
-          <button onClick={logout} style={styles.button}>Logout</button>
-        </div>
-
-        {isAdmin && (
-          <div style={styles.card}>
-            <h2>{editingId ? "Edit Exercise" : "Add Client Exercise"}</h2>
-
-            <input placeholder="Client Email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} style={styles.input} />
-            <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} style={styles.input} />
-            <input placeholder="Video URL" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} style={styles.input} />
-            <input placeholder="Sets" value={sets} onChange={(e) => setSets(e.target.value)} style={styles.input} />
-            <input placeholder="Reps" value={reps} onChange={(e) => setReps(e.target.value)} style={styles.input} />
-            <input placeholder="Rest Time" value={restTime} onChange={(e) => setRestTime(e.target.value)} style={styles.input} />
-            <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} style={styles.input} />
-
-            <textarea
-              placeholder="Notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ ...styles.input, height: 100 }}
-            />
-
-            <button onClick={addExercise} style={{ ...styles.button, background: "white", color: "black" }}>
-              {editingId ? "Save Changes" : "Add Exercise"}
-            </button>
-
-            {editingId && (
-              <button onClick={clearForm} style={{ ...styles.button, background: "#555", color: "white" }}>
-                Cancel Edit
-              </button>
-            )}
-          </div>
-        )}
-
-        <h2>{isAdmin ? "All Client Workouts" : "My Workouts"}</h2>
-
-        {exercises.map((item) => (
-          <div key={item.id} style={styles.card}>
-            <h3>{item.title}</h3>
-            {isAdmin && <p><b>Client:</b> {item.client_email}</p>}
-            <p><b>Category:</b> {item.category}</p>
-            <p><b>Sets:</b> {item.sets} | <b>Reps:</b> {item.reps}</p>
-            <p><b>Rest:</b> {item.rest_time}</p>
-            <p>{item.notes}</p>
-
-            <video
-              src={item.video_url}
-              controls
-              playsInline
-              style={{ width: "100%", maxWidth: 500, borderRadius: 10 }}
-            />
-
-            <br />
-
-            {!isAdmin && (
-              <button onClick={() => markComplete(item.id, item.completed)} style={styles.button}>
-                {item.completed ? "Completed ✅" : "Mark Complete"}
-              </button>
-            )}
-
-            {isAdmin && (
-              <>
-                <button onClick={() => startEdit(item)} style={{ ...styles.button, background: "#f1c40f" }}>
-                  Edit
-                </button>
-
-                <button onClick={() => deleteExercise(item.id)} style={{ ...styles.button, background: "red", color: "white" }}>
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-        ))}
+    <div style={{ padding: 30, background: "#111", color: "white", minHeight: "100vh", fontFamily: "Arial" }}>
+      <div style={{ textAlign: "center" }}>
+        <img src="/logo.png.png" style={{ width: 180 }} />
+        <h1>{isAdmin ? "Coach Dashboard" : "My Training Plan"}</h1>
+        <p>{session.user.email}</p>
+        <button onClick={logout}>Logout</button>
       </div>
+
+      <hr />
+
+      <h2>Workouts</h2>
+
+      {exercises.map((item) => (
+        <div key={item.id} style={{ background: "#1e1e1e", padding: 20, borderRadius: 10, marginBottom: 20 }}>
+          <h3>{item.title}</h3>
+          <p>{item.notes}</p>
+
+          <video
+            src={item.video_url}
+            controls
+            style={{ width: "100%", maxWidth: 500, borderRadius: 10 }}
+          />
+        </div>
+      ))}
+
+      {!isAdmin && (
+        <>
+          <hr />
+
+          <h2>Weekly Check-In</h2>
+
+          <input placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <input placeholder="Mood /10" value={mood} onChange={(e) => setMood(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <input placeholder="Energy /10" value={energy} onChange={(e) => setEnergy(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <textarea placeholder="Wins this week"
+            value={wins}
+            onChange={(e) => setWins(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <textarea placeholder="Struggles"
+            value={struggles}
+            onChange={(e) => setStruggles(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <textarea placeholder="Extra notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+
+          <button onClick={submitCheckin}>Submit Check-In</button>
+        </>
+      )}
+
+      <hr />
+
+      <h2>{isAdmin ? "Client Check-Ins" : "My Check-Ins"}</h2>
+
+      {checkins.map((item) => (
+        <div key={item.id} style={{ background: "#1e1e1e", padding: 20, borderRadius: 10, marginBottom: 20 }}>
+          <p><b>Client:</b> {item.client_email}</p>
+          <p><b>Weight:</b> {item.weight}</p>
+          <p><b>Mood:</b> {item.mood}</p>
+          <p><b>Energy:</b> {item.energy}</p>
+          <p><b>Wins:</b> {item.wins}</p>
+          <p><b>Struggles:</b> {item.struggles}</p>
+          <p><b>Notes:</b> {item.notes}</p>
+
+          {isAdmin && (
+            <button
+              onClick={() => deleteCheckin(item.id)}
+              style={{ background: "red", color: "white" }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
