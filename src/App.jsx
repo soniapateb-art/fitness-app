@@ -10,10 +10,12 @@ export default function App() {
   const [title, setTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [sets, setSets] = useState("");
+  const [reps, setReps] = useState("");
+  const [restTime, setRestTime] = useState("");
+  const [category, setCategory] = useState("");
 
   const [exercises, setExercises] = useState([]);
-
-  const adminEmail = "admin@email.com";
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -21,19 +23,25 @@ export default function App() {
       if (data.session) loadExercises(data.session.user.email);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) loadExercises(session.user.email);
-      else setExercises([]);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        if (session) loadExercises(session.user.email);
+        else setExercises([]);
+      }
+    );
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const isAdmin = session?.user?.email === adminEmail;
+  const isAdmin = session?.user?.email === "admin@email.com";
 
   async function login() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) alert(error.message);
   }
 
@@ -47,223 +55,186 @@ export default function App() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (userEmail !== adminEmail) {
+    if (userEmail !== "admin@email.com") {
       query = query.eq("client_email", userEmail);
     }
 
     const { data, error } = await query;
-    if (error) return alert(error.message);
-    setExercises(data || []);
+
+    if (!error) setExercises(data || []);
   }
 
   async function addExercise() {
-    if (!clientEmail || !title || !videoUrl) {
-      alert("Please add client email, exercise title and video URL");
-      return;
-    }
-
     const { error } = await supabase.from("exercises").insert([
       {
         client_email: clientEmail,
         title,
         video_url: videoUrl,
         notes,
+        sets,
+        reps,
+        rest_time: restTime,
+        category,
       },
     ]);
 
-    if (error) return alert(error.message);
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
+    setClientEmail("");
     setTitle("");
     setVideoUrl("");
     setNotes("");
+    setSets("");
+    setReps("");
+    setRestTime("");
+    setCategory("");
+
     loadExercises(session.user.email);
   }
 
   async function deleteExercise(id) {
-    const { error } = await supabase.from("exercises").delete().eq("id", id);
-    if (error) return alert(error.message);
+    await supabase.from("exercises").delete().eq("id", id);
     loadExercises(session.user.email);
   }
 
-  const styles = {
-    page: {
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #050505, #161616)",
-      color: "white",
-      fontFamily: "Arial",
-      padding: 20,
-    },
-    container: {
-      maxWidth: 1000,
-      margin: "0 auto",
-    },
-    card: {
-      background: "#111",
-      border: "1px solid #2a2a2a",
-      borderRadius: 18,
-      padding: 20,
-      marginBottom: 20,
-      boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-    },
-    input: {
-      width: "100%",
-      padding: 14,
-      marginBottom: 12,
-      borderRadius: 12,
-      border: "1px solid #333",
-      background: "#0b0b0b",
-      color: "white",
-      fontSize: 15,
-    },
-    button: {
-      padding: 14,
-      borderRadius: 12,
-      border: "none",
-      background: "white",
-      color: "black",
-      fontWeight: "bold",
-      cursor: "pointer",
-    },
-    danger: {
-      padding: 12,
-      borderRadius: 12,
-      border: "none",
-      background: "#ff3b3b",
-      color: "white",
-      fontWeight: "bold",
-      cursor: "pointer",
-      marginTop: 12,
-    },
-  };
+  async function markComplete(id, current) {
+    await supabase
+      .from("exercises")
+      .update({ completed: !current })
+      .eq("id", id);
+
+    loadExercises(session.user.email);
+  }
 
   if (!session) {
     return (
-      <div style={styles.page}>
-        <div style={{ ...styles.container, maxWidth: 450 }}>
-          <div style={{ ...styles.card, textAlign: "center", marginTop: 60 }}>
-            <img src="/logo.png.png" style={{ width: 180, marginBottom: 20 }} />
-            <h1>Client Login</h1>
-            <p style={{ color: "#aaa" }}>Access your private training plan</p>
+      <div style={{ padding: 40, color: "white", background: "#111", minHeight: "100vh" }}>
+        <h1>Login</h1>
 
-            <input
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
-            />
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ padding: 12, width: "100%", marginBottom: 10 }}
+        />
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
-            />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ padding: 12, width: "100%", marginBottom: 10 }}
+        />
 
-            <button onClick={login} style={{ ...styles.button, width: "100%" }}>
-              Login
-            </button>
-          </div>
-        </div>
+        <button onClick={login} style={{ padding: 12, width: "100%" }}>
+          Login
+        </button>
       </div>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <div style={{ ...styles.card, textAlign: "center" }}>
-          <img src="/logo.png.png" style={{ width: 180, marginBottom: 10 }} />
-          <h1>{isAdmin ? "Coach Dashboard" : "My Training Plan"}</h1>
-          <p style={{ color: "#aaa" }}>
-            Logged in as <b>{session.user.email}</b>
-          </p>
-          <button onClick={logout} style={styles.button}>
-            Logout
-          </button>
-        </div>
-
-        {isAdmin && (
-          <div style={styles.card}>
-            <h2>Add Exercise For Client</h2>
-
-            <input
-              placeholder="Client Email"
-              value={clientEmail}
-              onChange={(e) => setClientEmail(e.target.value)}
-              style={styles.input}
-            />
-
-            <input
-              placeholder="Exercise Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={styles.input}
-            />
-
-            <input
-              placeholder="Supabase Video URL"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              style={styles.input}
-            />
-
-            <textarea
-              placeholder="Workout notes, sets, reps, rest time..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ ...styles.input, height: 100 }}
-            />
-
-            <button onClick={addExercise} style={styles.button}>
-              Add Exercise
-            </button>
-          </div>
-        )}
-
-        <h2 style={{ marginTop: 30 }}>
-          {isAdmin ? "All Client Exercises" : "Your Exercises"}
-        </h2>
-
-        {exercises.length === 0 && (
-          <div style={styles.card}>
-            <p>No exercises yet.</p>
-          </div>
-        )}
-
-        {exercises.map((item) => (
-          <div key={item.id} style={styles.card}>
-            <h2>{item.title}</h2>
-
-            {isAdmin && (
-              <p style={{ color: "#aaa" }}>
-                Client: <b>{item.client_email}</b>
-              </p>
-            )}
-
-            <video
-              src={item.video_url}
-              controls
-              playsInline
-              style={{
-                width: "100%",
-                maxHeight: 420,
-                borderRadius: 16,
-                background: "black",
-                marginTop: 10,
-              }}
-            />
-
-            <p style={{ lineHeight: 1.6, color: "#ddd" }}>{item.notes}</p>
-
-            {isAdmin && (
-              <button onClick={() => deleteExercise(item.id)} style={styles.danger}>
-                Delete Exercise
-              </button>
-            )}
-          </div>
-        ))}
+    <div
+      style={{
+        padding: 30,
+        background: "#111",
+        color: "white",
+        minHeight: "100vh",
+        fontFamily: "Arial",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <img src="/logo.png.png" style={{ width: 180 }} />
+        <h1>Premium Fitness</h1>
+        <p>{session.user.email}</p>
+        <button onClick={logout}>Logout</button>
       </div>
+
+      {isAdmin && (
+        <>
+          <hr />
+          <h2>Add Client Exercise</h2>
+
+          <input placeholder="Client Email" value={clientEmail}
+            onChange={(e) => setClientEmail(e.target.value)} />
+
+          <input placeholder="Title" value={title}
+            onChange={(e) => setTitle(e.target.value)} />
+
+          <input placeholder="Video URL" value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)} />
+
+          <input placeholder="Sets" value={sets}
+            onChange={(e) => setSets(e.target.value)} />
+
+          <input placeholder="Reps" value={reps}
+            onChange={(e) => setReps(e.target.value)} />
+
+          <input placeholder="Rest Time" value={restTime}
+            onChange={(e) => setRestTime(e.target.value)} />
+
+          <input placeholder="Category" value={category}
+            onChange={(e) => setCategory(e.target.value)} />
+
+          <textarea
+            placeholder="Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+
+          <br /><br />
+          <button onClick={addExercise}>Add Exercise</button>
+        </>
+      )}
+
+      <hr />
+
+      <h2>{isAdmin ? "All Client Workouts" : "My Workouts"}</h2>
+
+      {exercises.map((item) => (
+        <div
+          key={item.id}
+          style={{
+            background: "#1e1e1e",
+            padding: 20,
+            borderRadius: 12,
+            marginBottom: 20,
+          }}
+        >
+          <h3>{item.title}</h3>
+          <p><b>Client:</b> {item.client_email}</p>
+          <p><b>Category:</b> {item.category}</p>
+          <p><b>Sets:</b> {item.sets} | <b>Reps:</b> {item.reps}</p>
+          <p><b>Rest:</b> {item.rest_time}</p>
+          <p>{item.notes}</p>
+
+          <video
+            src={item.video_url}
+            controls
+            style={{ width: "100%", maxWidth: 500, borderRadius: 10 }}
+          />
+
+          <br /><br />
+
+          {!isAdmin && (
+            <button onClick={() => markComplete(item.id, item.completed)}>
+              {item.completed ? "Completed ✅" : "Mark Complete"}
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => deleteExercise(item.id)}
+              style={{ background: "red", color: "white" }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
