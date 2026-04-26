@@ -11,12 +11,22 @@ export default function App() {
   const [exercises, setExercises] = useState([]);
   const [checkins, setCheckins] = useState([]);
 
+  const [clientEmail, setClientEmail] = useState("");
+  const [title, setTitle] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [exerciseNotes, setExerciseNotes] = useState("");
+  const [sets, setSets] = useState("");
+  const [reps, setReps] = useState("");
+  const [restTime, setRestTime] = useState("");
+  const [category, setCategory] = useState("");
+  const [editingId, setEditingId] = useState(null);
+
   const [weight, setWeight] = useState("");
   const [mood, setMood] = useState("");
   const [energy, setEnergy] = useState("");
   const [wins, setWins] = useState("");
   const [struggles, setStruggles] = useState("");
-  const [notes, setNotes] = useState("");
+  const [checkinNotes, setCheckinNotes] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -69,7 +79,13 @@ export default function App() {
       query = query.eq("client_email", userEmail);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setExercises(data || []);
   }
 
@@ -83,8 +99,79 @@ export default function App() {
       query = query.eq("client_email", userEmail);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setCheckins(data || []);
+  }
+
+  function clearExerciseForm() {
+    setClientEmail("");
+    setTitle("");
+    setVideoUrl("");
+    setExerciseNotes("");
+    setSets("");
+    setReps("");
+    setRestTime("");
+    setCategory("");
+    setEditingId(null);
+  }
+
+  async function saveExercise() {
+    if (!clientEmail || !title || !videoUrl) {
+      alert("Please add client email, title and video URL");
+      return;
+    }
+
+    const exerciseData = {
+      client_email: clientEmail,
+      title,
+      video_url: videoUrl,
+      notes: exerciseNotes,
+      sets,
+      reps,
+      rest_time: restTime,
+      category,
+    };
+
+    const result = editingId
+      ? await supabase.from("exercises").update(exerciseData).eq("id", editingId)
+      : await supabase.from("exercises").insert([exerciseData]);
+
+    if (result.error) {
+      alert(result.error.message);
+      return;
+    }
+
+    clearExerciseForm();
+    loadExercises(session.user.email);
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setClientEmail(item.client_email || "");
+    setTitle(item.title || "");
+    setVideoUrl(item.video_url || "");
+    setExerciseNotes(item.notes || "");
+    setSets(item.sets || "");
+    setReps(item.reps || "");
+    setRestTime(item.rest_time || "");
+    setCategory(item.category || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function deleteExercise(id) {
+    await supabase.from("exercises").delete().eq("id", id);
+    loadExercises(session.user.email);
+  }
+
+  async function markComplete(id, current) {
+    await supabase.from("exercises").update({ completed: !current }).eq("id", id);
+    loadExercises(session.user.email);
   }
 
   async function submitCheckin() {
@@ -96,7 +183,7 @@ export default function App() {
         energy,
         wins,
         struggles,
-        notes,
+        notes: checkinNotes,
       },
     ]);
 
@@ -110,7 +197,7 @@ export default function App() {
     setEnergy("");
     setWins("");
     setStruggles("");
-    setNotes("");
+    setCheckinNotes("");
 
     loadCheckins(session.user.email);
   }
@@ -120,29 +207,44 @@ export default function App() {
     loadCheckins(session.user.email);
   }
 
+  const inputStyle = {
+    width: "100%",
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 8,
+    border: "1px solid #444",
+    background: "#222",
+    color: "white",
+  };
+
+  const cardStyle = {
+    background: "#1e1e1e",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+  };
+
+  const buttonStyle = {
+    padding: 12,
+    borderRadius: 8,
+    border: "none",
+    marginRight: 8,
+    marginTop: 8,
+    cursor: "pointer",
+  };
+
   if (!session) {
     return (
       <div style={{ padding: 40, background: "#111", color: "white", minHeight: "100vh" }}>
-        <div style={{ maxWidth: 400, margin: "0 auto" }}>
-          <img src="/logo.png.png" style={{ width: 180, display: "block", margin: "0 auto 20px" }} />
+        <div style={{ maxWidth: 420, margin: "60px auto", textAlign: "center" }}>
+          <img src="/logo.png.png" style={{ width: 180, marginBottom: 20 }} />
           <h1>Client Login</h1>
 
-          <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }}
-          />
+          <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }}
-          />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
 
-          <button onClick={login} style={{ width: "100%", padding: 12 }}>
+          <button onClick={login} style={{ ...buttonStyle, width: "100%" }}>
             Login
           </button>
         </div>
@@ -152,88 +254,121 @@ export default function App() {
 
   return (
     <div style={{ padding: 30, background: "#111", color: "white", minHeight: "100vh", fontFamily: "Arial" }}>
-      <div style={{ textAlign: "center" }}>
-        <img src="/logo.png.png" style={{ width: 180 }} />
-        <h1>{isAdmin ? "Coach Dashboard" : "My Training Plan"}</h1>
-        <p>{session.user.email}</p>
-        <button onClick={logout}>Logout</button>
-      </div>
-
-      <hr />
-
-      <h2>Workouts</h2>
-
-      {exercises.map((item) => (
-        <div key={item.id} style={{ background: "#1e1e1e", padding: 20, borderRadius: 10, marginBottom: 20 }}>
-          <h3>{item.title}</h3>
-          <p>{item.notes}</p>
-
-          <video
-            src={item.video_url}
-            controls
-            style={{ width: "100%", maxWidth: 500, borderRadius: 10 }}
-          />
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <img src="/logo.png.png" style={{ width: 180 }} />
+          <h1>{isAdmin ? "Coach Dashboard" : "My Training Plan"}</h1>
+          <p>{session.user.email}</p>
+          <button onClick={logout} style={buttonStyle}>Logout</button>
         </div>
-      ))}
 
-      {!isAdmin && (
-        <>
-          <hr />
+        {isAdmin && (
+          <div style={cardStyle}>
+            <h2>{editingId ? "Edit Exercise" : "Add Client Exercise"}</h2>
 
-          <h2>Weekly Check-In</h2>
+            <input placeholder="Client Email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} style={inputStyle} />
+            <input placeholder="Exercise Title" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+            <input placeholder="Supabase Video URL" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} style={inputStyle} />
+            <input placeholder="Sets" value={sets} onChange={(e) => setSets(e.target.value)} style={inputStyle} />
+            <input placeholder="Reps" value={reps} onChange={(e) => setReps(e.target.value)} style={inputStyle} />
+            <input placeholder="Rest Time" value={restTime} onChange={(e) => setRestTime(e.target.value)} style={inputStyle} />
+            <input placeholder="Category" value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} />
 
-          <input placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
+            <textarea placeholder="Exercise Notes" value={exerciseNotes} onChange={(e) => setExerciseNotes(e.target.value)} style={{ ...inputStyle, height: 100 }} />
 
-          <input placeholder="Mood /10" value={mood} onChange={(e) => setMood(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
-
-          <input placeholder="Energy /10" value={energy} onChange={(e) => setEnergy(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
-
-          <textarea placeholder="Wins this week"
-            value={wins}
-            onChange={(e) => setWins(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
-
-          <textarea placeholder="Struggles"
-            value={struggles}
-            onChange={(e) => setStruggles(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
-
-          <textarea placeholder="Extra notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ width: "100%", padding: 12, marginBottom: 10 }} />
-
-          <button onClick={submitCheckin}>Submit Check-In</button>
-        </>
-      )}
-
-      <hr />
-
-      <h2>{isAdmin ? "Client Check-Ins" : "My Check-Ins"}</h2>
-
-      {checkins.map((item) => (
-        <div key={item.id} style={{ background: "#1e1e1e", padding: 20, borderRadius: 10, marginBottom: 20 }}>
-          <p><b>Client:</b> {item.client_email}</p>
-          <p><b>Weight:</b> {item.weight}</p>
-          <p><b>Mood:</b> {item.mood}</p>
-          <p><b>Energy:</b> {item.energy}</p>
-          <p><b>Wins:</b> {item.wins}</p>
-          <p><b>Struggles:</b> {item.struggles}</p>
-          <p><b>Notes:</b> {item.notes}</p>
-
-          {isAdmin && (
-            <button
-              onClick={() => deleteCheckin(item.id)}
-              style={{ background: "red", color: "white" }}
-            >
-              Delete
+            <button onClick={saveExercise} style={{ ...buttonStyle, background: "white", color: "black" }}>
+              {editingId ? "Save Changes" : "Add Exercise"}
             </button>
-          )}
-        </div>
-      ))}
+
+            {editingId && (
+              <button onClick={clearExerciseForm} style={{ ...buttonStyle, background: "#555", color: "white" }}>
+                Cancel Edit
+              </button>
+            )}
+          </div>
+        )}
+
+        <h2>Workouts</h2>
+
+        {exercises.map((item) => (
+          <div key={item.id} style={cardStyle}>
+            <h3>{item.title}</h3>
+
+            {isAdmin && <p><b>Client:</b> {item.client_email}</p>}
+
+            <p><b>Category:</b> {item.category}</p>
+            <p><b>Sets:</b> {item.sets}</p>
+            <p><b>Reps:</b> {item.reps}</p>
+            <p><b>Rest:</b> {item.rest_time}</p>
+            <p>{item.notes}</p>
+
+            <video
+              src={item.video_url}
+              controls
+              playsInline
+              style={{ width: "100%", maxWidth: 500, borderRadius: 10 }}
+            />
+
+            <br />
+
+            {!isAdmin && (
+              <button onClick={() => markComplete(item.id, item.completed)} style={buttonStyle}>
+                {item.completed ? "Completed ✅" : "Mark Complete"}
+              </button>
+            )}
+
+            {isAdmin && (
+              <>
+                <button onClick={() => startEdit(item)} style={{ ...buttonStyle, background: "#f1c40f" }}>
+                  Edit
+                </button>
+
+                <button onClick={() => deleteExercise(item.id)} style={{ ...buttonStyle, background: "red", color: "white" }}>
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+
+        {!isAdmin && (
+          <div style={cardStyle}>
+            <h2>Weekly Check-In</h2>
+
+            <input placeholder="Weight" value={weight} onChange={(e) => setWeight(e.target.value)} style={inputStyle} />
+            <input placeholder="Mood /10" value={mood} onChange={(e) => setMood(e.target.value)} style={inputStyle} />
+            <input placeholder="Energy /10" value={energy} onChange={(e) => setEnergy(e.target.value)} style={inputStyle} />
+
+            <textarea placeholder="Wins this week" value={wins} onChange={(e) => setWins(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Struggles" value={struggles} onChange={(e) => setStruggles(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+            <textarea placeholder="Extra notes" value={checkinNotes} onChange={(e) => setCheckinNotes(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+
+            <button onClick={submitCheckin} style={{ ...buttonStyle, background: "white", color: "black" }}>
+              Submit Check-In
+            </button>
+          </div>
+        )}
+
+        <h2>{isAdmin ? "Client Check-Ins" : "My Check-Ins"}</h2>
+
+        {checkins.map((item) => (
+          <div key={item.id} style={cardStyle}>
+            <p><b>Client:</b> {item.client_email}</p>
+            <p><b>Weight:</b> {item.weight}</p>
+            <p><b>Mood:</b> {item.mood}</p>
+            <p><b>Energy:</b> {item.energy}</p>
+            <p><b>Wins:</b> {item.wins}</p>
+            <p><b>Struggles:</b> {item.struggles}</p>
+            <p><b>Notes:</b> {item.notes}</p>
+
+            {isAdmin && (
+              <button onClick={() => deleteCheckin(item.id)} style={{ ...buttonStyle, background: "red", color: "white" }}>
+                Delete Check-In
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
