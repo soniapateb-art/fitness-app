@@ -19,16 +19,16 @@ export default function App() {
       if (data.session) loadExercises(data.session.user.email);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) loadExercises(session.user.email);
       else setExercises([]);
     });
 
-    return () => subscription.unsubscribe();
+    return () => listener.subscription.unsubscribe();
   }, []);
+
+  const isAdmin = session?.user?.email === "admin@email.com";
 
   async function login() {
     const { error } = await supabase.auth.signInWithPassword({
@@ -44,22 +44,31 @@ export default function App() {
   }
 
   async function loadExercises(userEmail) {
-    const isAdmin = userEmail === "admin@email.com";
+    let query = supabase
+      .from("exercises")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    let query = supabase.from("exercises").select("*").order("created_at", {
-      ascending: false,
-    });
-
-    if (!isAdmin) {
+    if (userEmail !== "admin@email.com") {
       query = query.eq("client_email", userEmail);
     }
 
     const { data, error } = await query;
 
-    if (!error) setExercises(data);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setExercises(data || []);
   }
 
   async function addExercise() {
+    if (!clientEmail || !title || !videoUrl) {
+      alert("Please add client email, exercise title and video URL");
+      return;
+    }
+
     const { error } = await supabase.from("exercises").insert([
       {
         client_email: clientEmail,
@@ -81,56 +90,54 @@ export default function App() {
   }
 
   async function deleteExercise(id) {
-    await supabase.from("exercises").delete().eq("id", id);
+    const { error } = await supabase.from("exercises").delete().eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     loadExercises(session.user.email);
   }
 
   if (!session) {
     return (
-      <div style={{ padding: 30, fontFamily: "Arial" }}>
+      <div style={{ padding: 30, fontFamily: "Arial", maxWidth: 500, margin: "0 auto" }}>
         <h1>Fitness App Login</h1>
 
         <input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ padding: 10, width: 320, marginBottom: 10 }}
+          style={{ padding: 12, width: "100%", marginBottom: 10 }}
         />
-
-        <br />
 
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: 10, width: 320, marginBottom: 10 }}
+          style={{ padding: 12, width: "100%", marginBottom: 10 }}
         />
 
-        <br />
-
-        <button onClick={login} style={{ padding: 10 }}>
+        <button onClick={login} style={{ padding: 12, width: "100%" }}>
           Login
         </button>
-
-        <p style={{ marginTop: 20 }}>
-          Use your Supabase user email + password
-        </p>
       </div>
     );
   }
 
-  const isAdmin = session.user.email === "admin@email.com";
-
   return (
-    <div style={{ padding: 30, fontFamily: "Arial" }}>
+    <div style={{ padding: 30, fontFamily: "Arial", maxWidth: 900, margin: "0 auto" }}>
       <h1>My Fitness App</h1>
 
       <p>
         Logged in as: <b>{session.user.email}</b>
       </p>
 
-      <button onClick={logout}>Logout</button>
+      <button onClick={logout} style={{ padding: 10 }}>
+        Logout
+      </button>
 
       {isAdmin && (
         <>
@@ -142,39 +149,31 @@ export default function App() {
             placeholder="Client Email"
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
-            style={{ padding: 10, width: 320, marginBottom: 10 }}
+            style={{ padding: 12, width: "100%", marginBottom: 10 }}
           />
-
-          <br />
 
           <input
             placeholder="Exercise Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ padding: 10, width: 320, marginBottom: 10 }}
+            style={{ padding: 12, width: "100%", marginBottom: 10 }}
           />
-
-          <br />
 
           <input
-            placeholder="Google Drive /preview link"
+            placeholder="Supabase Video URL"
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
-            style={{ padding: 10, width: 320, marginBottom: 10 }}
+            style={{ padding: 12, width: "100%", marginBottom: 10 }}
           />
-
-          <br />
 
           <textarea
             placeholder="Notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            style={{ padding: 10, width: 320, height: 80, marginBottom: 10 }}
+            style={{ padding: 12, width: "100%", height: 90, marginBottom: 10 }}
           />
 
-          <br />
-
-          <button onClick={addExercise} style={{ padding: 10 }}>
+          <button onClick={addExercise} style={{ padding: 12 }}>
             Add Exercise
           </button>
         </>
@@ -183,6 +182,8 @@ export default function App() {
       <hr />
 
       <h2>{isAdmin ? "All Client Exercises" : "My Exercises"}</h2>
+
+      {exercises.length === 0 && <p>No exercises yet.</p>}
 
       {exercises.map((item) => (
         <div
@@ -195,19 +196,24 @@ export default function App() {
           }}
         >
           <h3>{item.title}</h3>
+
           <p>
             <b>Client:</b> {item.client_email}
           </p>
+
           <p>{item.notes}</p>
 
-          <iframe
+          <video
             src={item.video_url}
-            width="300"
-            height="200"
-            allow="autoplay"
-            allowFullScreen
-            title={item.title}
-          ></iframe>
+            controls
+            playsInline
+            style={{
+              width: "100%",
+              maxWidth: 500,
+              borderRadius: 8,
+              background: "black",
+            }}
+          />
 
           {isAdmin && (
             <>
@@ -219,6 +225,7 @@ export default function App() {
                   background: "red",
                   color: "white",
                   border: "none",
+                  marginTop: 10,
                 }}
               >
                 Delete
