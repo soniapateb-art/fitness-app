@@ -130,7 +130,7 @@ export default function App() {
   return (
     <div style={{ padding: 30, fontFamily: "Arial", maxWidth: 900, margin: "0 auto" }}>
       <div style={{ textAlign: "center" }}>
-  <img src="/logo.png" style={{ width: 220, marginBottom: 20 }} />
+  <img src="/logo.png.png" style={{ width: 220, marginBottom: 20 }} />
   <h1>My Fitness App</h1>
 </div>
 
